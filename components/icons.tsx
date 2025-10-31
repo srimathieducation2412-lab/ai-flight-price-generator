@@ -111,3 +111,35 @@ export const MoonIcon: React.FC<{ className?: string }> = ({ className }) => (
       <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
     </svg>
 );
+
+export const KeyIcon: React.FC<{ className?: string }> = ({ className }) => (
+    <svg 
+        xmlns="http://www.w3.org/2000/svg" 
+        className={className}
+        viewBox="0 0 24 24" 
+        fill="none" 
+        stroke="currentColor" 
+        strokeWidth="2" 
+        strokeLinecap="round" 
+        strokeLinejoin="round"
+    >
+        <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>
+    </svg>
+);
+
+export const SparklesIcon: React.FC<{ className?: string }> = ({ className }) => (
+    <svg
+        xmlns="http://www.w3.org/2000/svg"
+        className={className}
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+    >
+        <path d="M12 3L9.5 8.5L4 11L9.5 13.5L12 19L14.5 13.5L20 11L14.5 8.5L12 3z"/>
+        <path d="M5 21L6.5 17.5L10 16L6.5 14.5L5 11"/>
+        <path d="M19 21L17.5 17.5L14 16L17.5 14.5L19 11"/>
+    </svg>
+);

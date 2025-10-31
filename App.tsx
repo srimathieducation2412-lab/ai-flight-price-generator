@@ -1,12 +1,13 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { Flight, GroundingSource } from './types';
-import { findFlights } from './services/geminiService';
+import { Flight, GroundingSource, Itinerary } from './types';
+import { findFlights, generateItinerary } from './services/geminiService';
 import FlightCard from './components/FlightCard';
+import ItineraryModal from './components/ItineraryModal';
 import { PlaneIcon, SearchIcon, LoadingSpinner, GmailIcon, WhatsAppIcon, ClearIcon, SunIcon, MoonIcon } from './components/icons';
 
 type Theme = 'light' | 'dark';
 
-// --- Helper Components (moved outside of App) ---
+// --- Helper Components ---
 
 interface SearchFormProps {
   query: string;
@@ -76,9 +77,10 @@ interface ResultsProps {
     flights: Flight[];
     sources: GroundingSource[];
     onShare: (platform: 'gmail' | 'whatsapp') => void;
+    onGenerateItinerary: (destination: string) => void;
 }
 
-const Results: React.FC<ResultsProps> = ({ error, flights, sources, onShare }) => (
+const Results: React.FC<ResultsProps> = ({ error, flights, sources, onShare, onGenerateItinerary }) => (
   <div className="w-full max-w-4xl mx-auto mt-12">
     {error && (
       <div className="text-center p-4 bg-red-900/50 border border-red-700 text-red-300 rounded-lg">
@@ -89,7 +91,7 @@ const Results: React.FC<ResultsProps> = ({ error, flights, sources, onShare }) =
       <>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {flights.map((flight, index) => (
-                  <FlightCard key={index} flight={flight} />
+                  <FlightCard key={index} flight={flight} onGenerateItinerary={onGenerateItinerary} />
               ))}
           </div>
           <ShareResults onShare={onShare} />
@@ -130,6 +132,10 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  const [itinerary, setItinerary] = useState<Itinerary | null>(null);
+  const [isItineraryLoading, setIsItineraryLoading] = useState<boolean>(false);
+  const [itineraryError, setItineraryError] = useState<string | null>(null);
 
   const [theme, setTheme] = useState<Theme>(() => {
     const savedTheme = localStorage.getItem('theme') as Theme | null;
@@ -184,6 +190,25 @@ const App: React.FC = () => {
     searchInputRef.current?.focus();
   }, []);
 
+  const handleGenerateItinerary = useCallback(async (destination: string) => {
+    setIsItineraryLoading(true);
+    setItineraryError(null);
+    setItinerary(null);
+    try {
+        const result = await generateItinerary(destination);
+        setItinerary(result);
+    } catch (err: unknown) {
+        setItineraryError(err instanceof Error ? err.message : 'An unknown error occurred.');
+    } finally {
+        setIsItineraryLoading(false);
+    }
+  }, []);
+
+  const handleCloseItinerary = () => {
+    setItinerary(null);
+    setItineraryError(null);
+  };
+
   const generateShareText = (flightResults: Flight[]): string => {
     let text = `Here are the flight options I found for "${query}":\n\n`;
     flightResults.forEach((flight, index) => {
@@ -215,7 +240,7 @@ const App: React.FC = () => {
     <div className="min-h-screen bg-slate-100 dark:bg-slate-900 text-slate-900 dark:text-white p-4 sm:p-8 transition-colors duration-300">
       <div 
         className="absolute top-0 left-0 w-full h-full bg-cover bg-center opacity-10 dark:opacity-10" 
-        style={{backgroundImage: `url('https://images.unsplash.com/photo-1530521954074-e64f6810b32d?q=80&w=2070&auto=format&fit=crop&ixlib-rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D')`}}
+        style={{backgroundImage: `url('https://images.unsplash.com/photo-1530521954074-e64f6810b32d?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D')`}}
       ></div>
        <button 
         onClick={toggleTheme}
@@ -264,9 +289,17 @@ const App: React.FC = () => {
             flights={flights}
             sources={sources}
             onShare={handleShare}
+            onGenerateItinerary={handleGenerateItinerary}
           />
         </main>
       </div>
+
+      <ItineraryModal 
+        itinerary={itinerary}
+        isLoading={isItineraryLoading}
+        error={itineraryError}
+        onClose={handleCloseItinerary}
+      />
     </div>
   );
 };
