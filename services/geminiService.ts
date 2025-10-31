@@ -1,18 +1,14 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
 import { Flight, GroundingSource, Itinerary } from '../types';
 
 /**
  * Creates and returns a GoogleGenAI client instance.
- * It expects the API key to be available in process.env.API_KEY.
- * @throws {Error} if the API key is not configured.
+ * @param {string} apiKey The Gemini API key.
+ * @throws {Error} if the API key is not provided.
  */
-const getAiClient = () => {
-    // The hosting environment is expected to inject the API_KEY.
-    // The polyfill in index.html ensures process.env exists.
-    const apiKey = process.env.API_KEY;
+const getAiClient = (apiKey: string) => {
     if (!apiKey) {
-        throw new Error("API key is not configured. Please ensure it is set in the environment variables.");
+        throw new Error("API key is not configured. Please set it using the key icon in the app.");
     }
     return new GoogleGenAI({ apiKey });
 };
@@ -31,9 +27,9 @@ const parseJsonResponse = (text: string): Flight[] | null => {
   return null;
 };
 
-export const findFlights = async (query: string): Promise<{ flights: Flight[], sources: GroundingSource[] }> => {
+export const findFlights = async (query: string, apiKey: string): Promise<{ flights: Flight[], sources: GroundingSource[] }> => {
   try {
-    const ai = getAiClient();
+    const ai = getAiClient(apiKey);
 
     const prompt = `
       You are a world-class flight travel expert. Your task is to find flight routes based on the user's query.
@@ -79,8 +75,13 @@ export const findFlights = async (query: string): Promise<{ flights: Flight[], s
     
   } catch (error) {
     console.error("Error fetching flight data from Gemini API:", error);
-    if (error instanceof Error && error.message.includes("API key is not configured")) {
-        throw new Error("The AI service is not configured. Please ensure the API key is set up correctly in the deployment environment.");
+    if (error instanceof Error) {
+        if (error.message.includes("API key not valid")) {
+            throw new Error("The provided API key is invalid. Please check it and try again.");
+        }
+        if (error.message.includes("API key is not configured")) {
+            throw error; // Re-throw our specific configuration error
+        }
     }
     throw new Error("Failed to fetch flight information. Please try again later.");
   }
@@ -116,11 +117,11 @@ const itinerarySchema = {
     required: ["title", "days"]
 };
 
-export const generateItinerary = async (destination: string): Promise<Itinerary> => {
+export const generateItinerary = async (destination: string, apiKey: string): Promise<Itinerary> => {
     const prompt = `Generate a detailed and engaging 3-day travel itinerary for a trip to ${destination}. The itinerary should be creative and include a mix of popular attractions, local experiences, and dining suggestions. For each day, provide a title and a list of activities with suggested times (e.g., "Morning", "Afternoon", "Evening").`;
 
     try {
-        const ai = getAiClient();
+        const ai = getAiClient(apiKey);
 
         const response = await ai.models.generateContent({
             model: "gemini-2.5-flash",
@@ -136,8 +137,13 @@ export const generateItinerary = async (destination: string): Promise<Itinerary>
 
     } catch (error) {
         console.error("Error generating itinerary from Gemini API:", error);
-        if (error instanceof Error && error.message.includes("API key is not configured")) {
-            throw new Error("The AI service is not configured. Please ensure the API key is set up correctly in the deployment environment.");
+        if (error instanceof Error) {
+            if (error.message.includes("API key not valid")) {
+                throw new Error("The provided API key is invalid. Please check it and try again.");
+            }
+            if (error.message.includes("API key is not configured")) {
+                throw error; // Re-throw our specific configuration error
+            }
         }
         throw new Error(`Failed to generate an itinerary for ${destination}. Please try again.`);
     }

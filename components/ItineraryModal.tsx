@@ -113,7 +113,7 @@ const ItineraryModal: React.FC<ItineraryModalProps> = ({ itinerary, isLoading, e
       <div 
         ref={modalRef}
         tabIndex={-1}
-        className="relative w-full max-w-2xl bg-slate-100 dark:bg-slate-800 rounded-2xl shadow-2xl flex flex-col transform transition-all duration-300 scale-95 opacity-0 animate-fade-in-scale"
+        className="relative w-full max-w-2xl bg-slate-100 dark:bg-slate-800 rounded-2xl shadow-2xl flex flex-col transform transition-all duration-300 animate-fade-in-scale"
       >
         <button 
           onClick={onClose} 
@@ -124,15 +124,6 @@ const ItineraryModal: React.FC<ItineraryModalProps> = ({ itinerary, isLoading, e
         </button>
         <ModalContent/>
       </div>
-      <style>{`
-        @keyframes fade-in-scale {
-            from { opacity: 0; transform: scale(0.95); }
-            to { opacity: 1; transform: scale(1); }
-        }
-        .animate-fade-in-scale {
-            animation: fade-in-scale 0.3s ease-out forwards;
-        }
-      `}</style>
     </div>
   );
 };
