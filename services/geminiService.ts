@@ -48,6 +48,7 @@ export const findFlights = async (query: string): Promise<{ flights: Flight[], s
         "stops": <number of stops>,
         "duration": "Total travel time (e.g., '12h 30m')"
       }
+      If you cannot find any flights, return an empty JSON array.
       Do not include any text outside of the markdown JSON code block. Provide at least 5 options if possible.
     `;
     
@@ -61,7 +62,7 @@ export const findFlights = async (query: string): Promise<{ flights: Flight[], s
 
     const flightData = parseJsonResponse(response.text);
     if (!flightData) {
-        throw new Error("Could not parse flight data from the AI's response.");
+        throw new Error("Could not parse flight data from the AI's response. The model may have returned an unexpected format.");
     }
     
     const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
@@ -76,7 +77,11 @@ export const findFlights = async (query: string): Promise<{ flights: Flight[], s
     
   } catch (error) {
     console.error("Error fetching flight data from Gemini API:", error);
-    throw new Error("Failed to fetch flight information. The application might be misconfigured.");
+    if (error instanceof Error) {
+        // Propagate a more specific error message to the UI
+        throw new Error(`AI request failed: ${error.message}`);
+    }
+    throw new Error("Failed to fetch flight information due to an unknown error.");
   }
 };
 
@@ -130,6 +135,9 @@ export const generateItinerary = async (destination: string): Promise<Itinerary>
 
     } catch (error) {
         console.error("Error generating itinerary from Gemini API:", error);
-        throw new Error(`Failed to generate an itinerary for ${destination}. The application might be misconfigured.`);
+        if (error instanceof Error) {
+            throw new Error(`AI request failed: ${error.message}`);
+        }
+        throw new Error(`Failed to generate an itinerary for ${destination} due to an unknown error.`);
     }
 };
