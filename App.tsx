@@ -3,8 +3,7 @@ import { Flight, GroundingSource, Itinerary } from './types';
 import { findFlights, generateItinerary } from './services/geminiService';
 import FlightCard from './components/FlightCard';
 import ItineraryModal from './components/ItineraryModal';
-import ApiKeyModal from './components/ApiKeyModal';
-import { PlaneIcon, SearchIcon, LoadingSpinner, GmailIcon, WhatsAppIcon, ClearIcon, SunIcon, MoonIcon, KeyIcon } from './components/icons';
+import { PlaneIcon, SearchIcon, LoadingSpinner, GmailIcon, WhatsAppIcon, ClearIcon, SunIcon, MoonIcon } from './components/icons';
 
 type Theme = 'light' | 'dark';
 
@@ -138,9 +137,6 @@ const App: React.FC = () => {
   const [isItineraryLoading, setIsItineraryLoading] = useState<boolean>(false);
   const [itineraryError, setItineraryError] = useState<string | null>(null);
 
-  const [apiKey, setApiKey] = useState<string | null>(null);
-  const [isApiKeyModalOpen, setIsApiKeyModalOpen] = useState<boolean>(false);
-
   const [theme, setTheme] = useState<Theme>(() => {
     const savedTheme = localStorage.getItem('theme') as Theme | null;
     const prefersDark = window.matchMedia?.('(prefers-color-scheme: dark)').matches;
@@ -158,37 +154,14 @@ const App: React.FC = () => {
 
   useEffect(() => {
     searchInputRef.current?.focus();
-    const keyFromSession = sessionStorage.getItem('gemini-api-key');
-
-    if (keyFromSession) {
-        setApiKey(keyFromSession);
-    } else {
-        setIsApiKeyModalOpen(true);
-    }
   }, []);
 
   const toggleTheme = () => {
     setTheme(prevTheme => prevTheme === 'light' ? 'dark' : 'light');
   };
   
-  const handleSaveApiKey = (key: string) => {
-    if (key.trim()) {
-        setApiKey(key.trim());
-        sessionStorage.setItem('gemini-api-key', key.trim());
-        setIsApiKeyModalOpen(false);
-        if (error && error.toLowerCase().includes('api key')) {
-            setError(null);
-        }
-    }
-  };
-
   const handleSearch = useCallback(async (e?: React.FormEvent<HTMLFormElement>) => {
     e?.preventDefault();
-    if (!apiKey) {
-      setError("Please configure your Gemini API key to proceed.");
-      setIsApiKeyModalOpen(true);
-      return;
-    }
     if (!query.trim()) {
       setError('Please enter a search query.');
       return;
@@ -199,15 +172,16 @@ const App: React.FC = () => {
     setSources([]);
 
     try {
-      const result = await findFlights(query, apiKey);
+      const result = await findFlights(query);
       setFlights(result.flights);
       setSources(result.sources);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'An unknown error occurred.');
+      const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred.';
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
-  }, [query, apiKey]);
+  }, [query]);
 
   const handleClear = useCallback(() => {
     setQuery('');
@@ -218,23 +192,19 @@ const App: React.FC = () => {
   }, []);
 
   const handleGenerateItinerary = useCallback(async (destination: string) => {
-    if (!apiKey) {
-        setItineraryError("Please configure your Gemini API key to generate an itinerary.");
-        setIsApiKeyModalOpen(true);
-        return;
-    }
     setIsItineraryLoading(true);
     setItineraryError(null);
     setItinerary(null);
     try {
-        const result = await generateItinerary(destination, apiKey);
+        const result = await generateItinerary(destination);
         setItinerary(result);
     } catch (err: unknown) {
-        setItineraryError(err instanceof Error ? err.message : 'An unknown error occurred.');
+        const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred.';
+        setItineraryError(errorMessage);
     } finally {
         setIsItineraryLoading(false);
     }
-  }, [apiKey]);
+  }, []);
 
   const handleCloseItinerary = () => {
     setItinerary(null);
@@ -275,13 +245,6 @@ const App: React.FC = () => {
         style={{backgroundImage: `url('https://images.unsplash.com/photo-1530521954074-e64f6810b32d?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D')`}}
       ></div>
       <div className="absolute top-4 right-4 flex items-center gap-2">
-        <button
-            onClick={() => setIsApiKeyModalOpen(true)}
-            className="p-3 rounded-full bg-slate-200/80 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-700 transition-all duration-300"
-            aria-label="Set API Key"
-        >
-            <KeyIcon className="w-6 h-6"/>
-        </button>
         <button 
             onClick={toggleTheme}
             className="p-3 rounded-full bg-slate-200/80 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-700 transition-all duration-300"
@@ -324,14 +287,16 @@ const App: React.FC = () => {
         </div>
 
         <main className="w-full mt-10">
-          {!isLoading && flights.length === 0 && !error && <WelcomeScreen />}
-          <Results 
-            error={error}
-            flights={flights}
-            sources={sources}
-            onShare={handleShare}
-            onGenerateItinerary={handleGenerateItinerary}
-          />
+            <>
+              {!isLoading && flights.length === 0 && !error && <WelcomeScreen />}
+              <Results 
+                error={error}
+                flights={flights}
+                sources={sources}
+                onShare={handleShare}
+                onGenerateItinerary={handleGenerateItinerary}
+              />
+            </>
         </main>
       </div>
 
@@ -342,12 +307,6 @@ const App: React.FC = () => {
         onClose={handleCloseItinerary}
       />
       
-      <ApiKeyModal
-        isOpen={isApiKeyModalOpen}
-        onClose={() => { if (apiKey) setIsApiKeyModalOpen(false) }}
-        onSave={handleSaveApiKey}
-        isDismissible={!!apiKey}
-      />
     </div>
   );
 };

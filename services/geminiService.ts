@@ -3,14 +3,15 @@ import { Flight, GroundingSource, Itinerary } from '../types';
 
 /**
  * Creates and returns a GoogleGenAI client instance.
- * @param {string} apiKey The Gemini API key.
- * @throws {Error} if the API key is not provided.
+ * It automatically uses the API key provided by the environment.
+ * @throws {Error} if the API key is not available.
  */
-const getAiClient = (apiKey: string) => {
-    if (!apiKey) {
-        throw new Error("API key is not configured. Please set it using the key icon in the app.");
+const getAiClient = () => {
+    // The hosting environment is expected to provide the API key.
+    if (!process.env.API_KEY) {
+        throw new Error("API key is not configured for this application.");
     }
-    return new GoogleGenAI({ apiKey });
+    return new GoogleGenAI({ apiKey: process.env.API_KEY });
 };
 
 
@@ -27,9 +28,9 @@ const parseJsonResponse = (text: string): Flight[] | null => {
   return null;
 };
 
-export const findFlights = async (query: string, apiKey: string): Promise<{ flights: Flight[], sources: GroundingSource[] }> => {
+export const findFlights = async (query: string): Promise<{ flights: Flight[], sources: GroundingSource[] }> => {
   try {
-    const ai = getAiClient(apiKey);
+    const ai = getAiClient();
 
     const prompt = `
       You are a world-class flight travel expert. Your task is to find flight routes based on the user's query.
@@ -75,15 +76,7 @@ export const findFlights = async (query: string, apiKey: string): Promise<{ flig
     
   } catch (error) {
     console.error("Error fetching flight data from Gemini API:", error);
-    if (error instanceof Error) {
-        if (error.message.includes("API key not valid")) {
-            throw new Error("The provided API key is invalid. Please check it and try again.");
-        }
-        if (error.message.includes("API key is not configured")) {
-            throw error; // Re-throw our specific configuration error
-        }
-    }
-    throw new Error("Failed to fetch flight information. Please try again later.");
+    throw new Error("Failed to fetch flight information. The application might be misconfigured.");
   }
 };
 
@@ -117,11 +110,11 @@ const itinerarySchema = {
     required: ["title", "days"]
 };
 
-export const generateItinerary = async (destination: string, apiKey: string): Promise<Itinerary> => {
+export const generateItinerary = async (destination: string): Promise<Itinerary> => {
     const prompt = `Generate a detailed and engaging 3-day travel itinerary for a trip to ${destination}. The itinerary should be creative and include a mix of popular attractions, local experiences, and dining suggestions. For each day, provide a title and a list of activities with suggested times (e.g., "Morning", "Afternoon", "Evening").`;
 
     try {
-        const ai = getAiClient(apiKey);
+        const ai = getAiClient();
 
         const response = await ai.models.generateContent({
             model: "gemini-2.5-flash",
@@ -137,14 +130,6 @@ export const generateItinerary = async (destination: string, apiKey: string): Pr
 
     } catch (error) {
         console.error("Error generating itinerary from Gemini API:", error);
-        if (error instanceof Error) {
-            if (error.message.includes("API key not valid")) {
-                throw new Error("The provided API key is invalid. Please check it and try again.");
-            }
-            if (error.message.includes("API key is not configured")) {
-                throw error; // Re-throw our specific configuration error
-            }
-        }
-        throw new Error(`Failed to generate an itinerary for ${destination}. Please try again.`);
+        throw new Error(`Failed to generate an itinerary for ${destination}. The application might be misconfigured.`);
     }
 };
