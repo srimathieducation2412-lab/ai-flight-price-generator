@@ -1,0 +1,5 @@
+{
+  "name": "Copy of AI Flight Route Finder",
+  "description": "An AI-powered application that finds and lists flight travel routes along with their estimated costs using Google's Gemini API.",
+  "requestFramePermissions": []
+}
