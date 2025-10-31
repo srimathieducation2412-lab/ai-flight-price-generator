@@ -3,11 +3,42 @@ import { Flight, GroundingSource, Itinerary } from './types';
 import { findFlights, generateItinerary } from './services/geminiService';
 import FlightCard from './components/FlightCard';
 import ItineraryModal from './components/ItineraryModal';
-import { PlaneIcon, SearchIcon, LoadingSpinner, GmailIcon, WhatsAppIcon, ClearIcon, SunIcon, MoonIcon } from './components/icons';
+import { PlaneIcon, SearchIcon, LoadingSpinner, GmailIcon, WhatsAppIcon, ClearIcon, SunIcon, MoonIcon, KeyIcon } from './components/icons';
 
 type Theme = 'light' | 'dark';
 
 // --- Helper Components ---
+
+interface ApiKeySelectionScreenProps {
+    onSelectKey: () => Promise<void>;
+}
+  
+const ApiKeySelectionScreen: React.FC<ApiKeySelectionScreenProps> = ({ onSelectKey }) => (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-100 dark:bg-slate-900 p-4">
+      <div className="w-full max-w-md text-center bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl p-8 animate-fade-in-scale">
+        <KeyIcon className="w-12 h-12 mx-auto text-cyan-500 dark:text-cyan-400 mb-4" />
+        <h2 id="api-key-title" className="text-2xl font-bold mb-2">API Key Required</h2>
+        <p className="text-slate-500 dark:text-slate-400 mb-6">
+          To use this application, please select an API key. Your usage will be associated with the selected Google Cloud project.
+        </p>
+        <a
+          href="https://ai.google.dev/gemini-api/docs/billing"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block mt-3 text-sm text-cyan-600 dark:text-cyan-400 hover:underline"
+        >
+          Learn more about billing
+        </a>
+        <button
+          onClick={onSelectKey}
+          className="mt-6 w-full flex items-center justify-center gap-2 px-4 py-3 bg-cyan-500 text-white font-semibold rounded-lg transition-colors duration-300 hover:bg-cyan-600"
+        >
+          <KeyIcon className="w-5 h-5" />
+          Select API Key
+        </button>
+      </div>
+    </div>
+);
 
 interface SearchFormProps {
   query: string;
@@ -136,6 +167,8 @@ const App: React.FC = () => {
   const [itinerary, setItinerary] = useState<Itinerary | null>(null);
   const [isItineraryLoading, setIsItineraryLoading] = useState<boolean>(false);
   const [itineraryError, setItineraryError] = useState<string | null>(null);
+  
+  const [hasApiKey, setHasApiKey] = useState(true);
 
   const [theme, setTheme] = useState<Theme>(() => {
     const savedTheme = localStorage.getItem('theme') as Theme | null;
@@ -153,11 +186,33 @@ const App: React.FC = () => {
   }, [theme]);
 
   useEffect(() => {
+    const checkApiKey = async () => {
+        if (window.aistudio) {
+            const keyStatus = await window.aistudio.hasSelectedApiKey();
+            setHasApiKey(keyStatus);
+        }
+    };
+    checkApiKey();
     searchInputRef.current?.focus();
   }, []);
 
   const toggleTheme = () => {
     setTheme(prevTheme => prevTheme === 'light' ? 'dark' : 'light');
+  };
+
+  const handleApiError = (err: unknown) => {
+    const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred.';
+    // Check for specific error messages related to API key issues.
+    if (
+        errorMessage.includes('API key is not configured') ||
+        errorMessage.includes('Requested entity was not found') ||
+        errorMessage.includes('API_KEY_INVALID')
+    ) {
+        setHasApiKey(false);
+        setError("Your API key is missing or invalid. Please select a valid API key to continue.");
+    } else {
+        setError(errorMessage);
+    }
   };
   
   const handleSearch = useCallback(async (e?: React.FormEvent<HTMLFormElement>) => {
@@ -173,11 +228,13 @@ const App: React.FC = () => {
 
     try {
       const result = await findFlights(query);
+      if (result.flights.length === 0) {
+        setError("No flights found for your query. Try being more specific or check for typos.");
+      }
       setFlights(result.flights);
       setSources(result.sources);
     } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred.';
-      setError(errorMessage);
+      handleApiError(err);
     } finally {
       setIsLoading(false);
     }
@@ -211,6 +268,20 @@ const App: React.FC = () => {
     setItineraryError(null);
   };
 
+  const handleSelectKey = async () => {
+    try {
+        if (window.aistudio) {
+            await window.aistudio.openSelectKey();
+            // Optimistically set to true. The next API call will validate it.
+            setHasApiKey(true);
+            setError(null); // Clear previous errors
+        }
+    } catch (e) {
+        console.error("Error opening API key selection:", e);
+        setError("Could not open the API key selection dialog.");
+    }
+  };
+
   const generateShareText = (flightResults: Flight[]): string => {
     let text = `Here are the flight options I found for "${query}":\n\n`;
     flightResults.forEach((flight, index) => {
@@ -237,6 +308,10 @@ const App: React.FC = () => {
       window.open(whatsappLink, '_blank');
     }
   };
+
+  if (!hasApiKey) {
+    return <ApiKeySelectionScreen onSelectKey={handleSelectKey} />;
+  }
 
   return (
     <div className="min-h-screen bg-slate-100 dark:bg-slate-900 text-slate-900 dark:text-white p-4 sm:p-8 transition-colors duration-300">
