@@ -1,5 +1,4 @@
 
-
 export interface Flight {
   from: string;
   to: string;
@@ -30,13 +29,12 @@ export interface Itinerary {
   days: ItineraryDay[];
 }
 
-// Fix: Removed 'export' from the AIStudio interface to resolve global type declaration conflicts.
-interface AIStudio {
-  hasSelectedApiKey: () => Promise<boolean>;
-  openSelectKey: () => Promise<void>;
-}
-
+// Fix: Moved the AIStudio interface inside the `declare global` block to resolve global type declaration conflicts.
 declare global {
+    interface AIStudio {
+      hasSelectedApiKey: () => Promise<boolean>;
+      openSelectKey: () => Promise<void>;
+    }
     interface Window {
       aistudio: AIStudio;
     }

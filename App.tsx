@@ -13,16 +13,22 @@ type Theme = 'light' | 'dark';
 
 interface ApiKeySelectionScreenProps {
     onSelectKey: () => Promise<void>;
+    error: string | null;
 }
   
-const ApiKeySelectionScreen: React.FC<ApiKeySelectionScreenProps> = ({ onSelectKey }) => (
+const ApiKeySelectionScreen: React.FC<ApiKeySelectionScreenProps> = ({ onSelectKey, error }) => (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-100 dark:bg-slate-900 p-4">
       <div className="w-full max-w-md text-center bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl p-8 animate-fade-in-scale">
         <KeyIcon className="w-12 h-12 mx-auto text-cyan-500 dark:text-cyan-400 mb-4" />
         <h2 id="api-key-title" className="text-2xl font-bold mb-2">API Key Required</h2>
         <p className="text-slate-500 dark:text-slate-400 mb-6">
-          To use this application, please select an API key. Your usage will be associated with the selected Google Cloud project.
+          This application requires a Gemini API key to function. Click the button below to open a dialog where you can select your key. Your usage will be associated with the selected Google Cloud project.
         </p>
+        {error && (
+            <div className="mb-4 text-center p-3 bg-red-900/50 border border-red-700 text-red-300 rounded-lg">
+                {error}
+            </div>
+        )}
         <a
           href="https://ai.google.dev/gemini-api/docs/billing"
           target="_blank"
@@ -331,7 +337,7 @@ const App: React.FC = () => {
   }
 
   if (hasApiKey === false) {
-    return <ApiKeySelectionScreen onSelectKey={handleSelectKey} />;
+    return <ApiKeySelectionScreen onSelectKey={handleSelectKey} error={error} />;
   }
 
   return (
