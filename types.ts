@@ -28,15 +28,3 @@ export interface Itinerary {
   title: string;
   days: ItineraryDay[];
 }
-
-// Fix: Moved the AIStudio interface inside the `declare global` block to resolve global type declaration conflicts.
-declare global {
-    interface AIStudio {
-      hasSelectedApiKey: () => Promise<boolean>;
-      openSelectKey: () => Promise<void>;
-    }
-    interface Window {
-      // Fix: Made the 'aistudio' property optional to resolve a global type declaration conflict.
-      aistudio?: AIStudio;
-    }
-}

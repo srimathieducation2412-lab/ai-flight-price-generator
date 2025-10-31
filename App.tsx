@@ -3,59 +3,21 @@ import { Flight, GroundingSource, Itinerary } from './types';
 import { findFlights, generateItinerary } from './services/geminiService';
 import FlightCard from './components/FlightCard';
 import ItineraryModal from './components/ItineraryModal';
-import { PlaneIcon, SearchIcon, LoadingSpinner, GmailIcon, WhatsAppIcon, ClearIcon, SunIcon, MoonIcon, KeyIcon } from './components/icons';
+import { PlaneIcon, SearchIcon, LoadingSpinner, GmailIcon, WhatsAppIcon, ClearIcon, SunIcon, MoonIcon } from './components/icons';
 
 type Theme = 'light' | 'dark';
 
 // --- Helper Components ---
-
-interface ApiKeyPromptProps {
-    onSelectKey: () => Promise<void>;
-    error: string | null;
-}
-  
-const ApiKeyPrompt: React.FC<ApiKeyPromptProps> = ({ onSelectKey, error }) => (
-    <div className="absolute inset-0 z-20 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
-        <div className="w-full max-w-md text-center bg-white/80 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl p-8 animate-fade-in-scale">
-        <KeyIcon className="w-12 h-12 mx-auto text-cyan-500 dark:text-cyan-400 mb-4" />
-        <h2 id="api-key-title" className="text-2xl font-bold mb-2">Select Your API Key</h2>
-        <p className="text-slate-500 dark:text-slate-400 mb-6">
-            To find flights, this application requires a Gemini API key. Please select one to start searching.
-        </p>
-        {error && (
-            <div className="mb-4 text-center p-3 bg-red-900/50 border border-red-700 text-red-300 rounded-lg">
-                {error}
-            </div>
-        )}
-            <a
-            href="https://ai.google.dev/gemini-api/docs/billing"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="block mt-3 text-sm text-cyan-600 dark:text-cyan-400 hover:underline"
-        >
-            Learn more about billing
-        </a>
-        <button
-            onClick={onSelectKey}
-            className="mt-6 w-full flex items-center justify-center gap-2 px-4 py-3 bg-cyan-500 text-white font-semibold rounded-lg transition-colors duration-300 hover:bg-cyan-600"
-        >
-            <KeyIcon className="w-5 h-5" />
-            Select API Key
-        </button>
-        </div>
-    </div>
-);
 
 interface SearchFormProps {
   query: string;
   onQueryChange: (value: string) => void;
   onSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
   isLoading: boolean;
-  disabled: boolean;
   inputRef: React.RefObject<HTMLInputElement>;
 }
 
-const SearchForm: React.FC<SearchFormProps> = ({ query, onQueryChange, onSubmit, isLoading, disabled, inputRef }) => (
+const SearchForm: React.FC<SearchFormProps> = ({ query, onQueryChange, onSubmit, isLoading, inputRef }) => (
   <form onSubmit={onSubmit} className="w-full max-w-2xl mx-auto">
     <div className="relative">
       <input
@@ -63,14 +25,14 @@ const SearchForm: React.FC<SearchFormProps> = ({ query, onQueryChange, onSubmit,
         type="text"
         value={query}
         onChange={(e) => onQueryChange(e.target.value)}
-        placeholder={disabled ? "Please select an API key to begin" : "e.g., flights from NYC to London"}
+        placeholder="e.g., flights from NYC to London"
         className="w-full pl-5 pr-12 py-4 bg-white/70 dark:bg-slate-800/70 border border-slate-300 dark:border-slate-700 rounded-full text-lg text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all duration-300 disabled:cursor-not-allowed disabled:opacity-60"
-        disabled={disabled}
+        disabled={isLoading}
       />
       <button
         type="submit"
         className="absolute inset-y-0 right-0 flex items-center justify-center w-14 h-14 bg-cyan-500 text-white rounded-full m-1 transform transition-transform duration-300 hover:scale-110 hover:bg-cyan-400 disabled:bg-slate-600 disabled:cursor-not-allowed"
-        disabled={disabled}
+        disabled={isLoading}
         aria-label="Search flights"
       >
         {isLoading ? (
@@ -175,8 +137,6 @@ const App: React.FC = () => {
   const [isItineraryLoading, setIsItineraryLoading] = useState<boolean>(false);
   const [itineraryError, setItineraryError] = useState<string | null>(null);
   
-  const [hasApiKey, setHasApiKey] = useState<boolean | null>(null);
-
   const [theme, setTheme] = useState<Theme>(() => {
     const savedTheme = localStorage.getItem('theme') as Theme | null;
     const prefersDark = window.matchMedia?.('(prefers-color-scheme: dark)').matches;
@@ -193,24 +153,8 @@ const App: React.FC = () => {
   }, [theme]);
 
   useEffect(() => {
-    const checkApiKey = async () => {
-        if (window.aistudio) {
-            const keyStatus = await window.aistudio.hasSelectedApiKey();
-            setHasApiKey(keyStatus);
-        } else {
-            // If the aistudio helper isn't available, we can't get a key.
-            setHasApiKey(false);
-        }
-    };
-    checkApiKey();
+    searchInputRef.current?.focus();
   }, []);
-  
-  useEffect(() => {
-      // Focus the input only after the API key check is complete and successful.
-      if(hasApiKey === true) {
-        searchInputRef.current?.focus();
-      }
-  }, [hasApiKey]);
 
 
   const toggleTheme = () => {
@@ -219,25 +163,11 @@ const App: React.FC = () => {
 
   const handleApiError = (err: unknown) => {
     const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred.';
-    // Check for specific error messages related to API key issues.
-    if (
-        errorMessage.includes('API key is not configured') ||
-        errorMessage.includes('Requested entity was not found') ||
-        errorMessage.includes('API_KEY_INVALID')
-    ) {
-        setHasApiKey(false);
-        setError("Your API key is missing or invalid. Please select a valid API key to continue.");
-    } else {
-        setError(errorMessage);
-    }
+    setError(errorMessage);
   };
   
   const handleSearch = useCallback(async (e?: React.FormEvent<HTMLFormElement>) => {
     e?.preventDefault();
-    if (hasApiKey !== true) {
-        setError("Please select an API key before searching.");
-        return;
-    }
     if (!query.trim()) {
       setError('Please enter a search query.');
       return;
@@ -259,7 +189,7 @@ const App: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [query, hasApiKey]);
+  }, [query]);
 
   const handleClear = useCallback(() => {
     setQuery('');
@@ -287,20 +217,6 @@ const App: React.FC = () => {
   const handleCloseItinerary = () => {
     setItinerary(null);
     setItineraryError(null);
-  };
-
-  const handleSelectKey = async () => {
-    try {
-        if (window.aistudio) {
-            await window.aistudio.openSelectKey();
-            // Optimistically set to true. The next API call will validate it.
-            setHasApiKey(true);
-            setError(null); // Clear previous errors
-        }
-    } catch (e) {
-        console.error("Error opening API key selection:", e);
-        setError("Could not open the API key selection dialog.");
-    }
   };
 
   const generateShareText = (flightResults: Flight[]): string => {
@@ -347,8 +263,6 @@ const App: React.FC = () => {
         </button>
       </div>
 
-      {hasApiKey === false && <ApiKeyPrompt onSelectKey={handleSelectKey} error={error} />}
-
       <div className="relative z-10 container mx-auto flex flex-col items-center">
         <header className="text-center my-10 sm:my-16">
           <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight">
@@ -366,7 +280,6 @@ const App: React.FC = () => {
                   onQueryChange={setQuery}
                   onSubmit={handleSearch}
                   isLoading={isLoading}
-                  disabled={isLoading || hasApiKey !== true}
                   inputRef={searchInputRef}
                 />
             </div>
