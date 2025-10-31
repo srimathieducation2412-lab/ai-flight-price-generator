@@ -158,12 +158,9 @@ const App: React.FC = () => {
 
   useEffect(() => {
     searchInputRef.current?.focus();
-    const keyFromEnv = window.process?.env?.API_KEY;
     const keyFromSession = sessionStorage.getItem('gemini-api-key');
 
-    if (keyFromEnv) {
-        setApiKey(keyFromEnv);
-    } else if (keyFromSession) {
+    if (keyFromSession) {
         setApiKey(keyFromSession);
     } else {
         setIsApiKeyModalOpen(true);
