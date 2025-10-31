@@ -36,6 +36,7 @@ declare global {
       openSelectKey: () => Promise<void>;
     }
     interface Window {
-      aistudio: AIStudio;
+      // Fix: Made the 'aistudio' property optional to resolve a global type declaration conflict.
+      aistudio?: AIStudio;
     }
 }

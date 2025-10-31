@@ -1,5 +1,3 @@
-
-
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Flight, GroundingSource, Itinerary } from './types';
 import { findFlights, generateItinerary } from './services/geminiService';
@@ -11,40 +9,40 @@ type Theme = 'light' | 'dark';
 
 // --- Helper Components ---
 
-interface ApiKeySelectionScreenProps {
+interface ApiKeyPromptProps {
     onSelectKey: () => Promise<void>;
     error: string | null;
 }
   
-const ApiKeySelectionScreen: React.FC<ApiKeySelectionScreenProps> = ({ onSelectKey, error }) => (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-100 dark:bg-slate-900 p-4">
-      <div className="w-full max-w-md text-center bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl p-8 animate-fade-in-scale">
+const ApiKeyPrompt: React.FC<ApiKeyPromptProps> = ({ onSelectKey, error }) => (
+    <div className="absolute inset-0 z-20 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+        <div className="w-full max-w-md text-center bg-white/80 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl p-8 animate-fade-in-scale">
         <KeyIcon className="w-12 h-12 mx-auto text-cyan-500 dark:text-cyan-400 mb-4" />
-        <h2 id="api-key-title" className="text-2xl font-bold mb-2">API Key Required</h2>
+        <h2 id="api-key-title" className="text-2xl font-bold mb-2">Select Your API Key</h2>
         <p className="text-slate-500 dark:text-slate-400 mb-6">
-          This application requires a Gemini API key to function. Click the button below to open a dialog where you can select your key. Your usage will be associated with the selected Google Cloud project.
+            To find flights, this application requires a Gemini API key. Please select one to start searching.
         </p>
         {error && (
             <div className="mb-4 text-center p-3 bg-red-900/50 border border-red-700 text-red-300 rounded-lg">
                 {error}
             </div>
         )}
-        <a
-          href="https://ai.google.dev/gemini-api/docs/billing"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="block mt-3 text-sm text-cyan-600 dark:text-cyan-400 hover:underline"
+            <a
+            href="https://ai.google.dev/gemini-api/docs/billing"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block mt-3 text-sm text-cyan-600 dark:text-cyan-400 hover:underline"
         >
-          Learn more about billing
+            Learn more about billing
         </a>
         <button
-          onClick={onSelectKey}
-          className="mt-6 w-full flex items-center justify-center gap-2 px-4 py-3 bg-cyan-500 text-white font-semibold rounded-lg transition-colors duration-300 hover:bg-cyan-600"
+            onClick={onSelectKey}
+            className="mt-6 w-full flex items-center justify-center gap-2 px-4 py-3 bg-cyan-500 text-white font-semibold rounded-lg transition-colors duration-300 hover:bg-cyan-600"
         >
-          <KeyIcon className="w-5 h-5" />
-          Select API Key
+            <KeyIcon className="w-5 h-5" />
+            Select API Key
         </button>
-      </div>
+        </div>
     </div>
 );
 
@@ -53,10 +51,11 @@ interface SearchFormProps {
   onQueryChange: (value: string) => void;
   onSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
   isLoading: boolean;
+  disabled: boolean;
   inputRef: React.RefObject<HTMLInputElement>;
 }
 
-const SearchForm: React.FC<SearchFormProps> = ({ query, onQueryChange, onSubmit, isLoading, inputRef }) => (
+const SearchForm: React.FC<SearchFormProps> = ({ query, onQueryChange, onSubmit, isLoading, disabled, inputRef }) => (
   <form onSubmit={onSubmit} className="w-full max-w-2xl mx-auto">
     <div className="relative">
       <input
@@ -64,14 +63,14 @@ const SearchForm: React.FC<SearchFormProps> = ({ query, onQueryChange, onSubmit,
         type="text"
         value={query}
         onChange={(e) => onQueryChange(e.target.value)}
-        placeholder="e.g., flights from NYC to London"
-        className="w-full pl-5 pr-12 py-4 bg-white/70 dark:bg-slate-800/70 border border-slate-300 dark:border-slate-700 rounded-full text-lg text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all duration-300"
-        disabled={isLoading}
+        placeholder={disabled ? "Please select an API key to begin" : "e.g., flights from NYC to London"}
+        className="w-full pl-5 pr-12 py-4 bg-white/70 dark:bg-slate-800/70 border border-slate-300 dark:border-slate-700 rounded-full text-lg text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all duration-300 disabled:cursor-not-allowed disabled:opacity-60"
+        disabled={disabled}
       />
       <button
         type="submit"
         className="absolute inset-y-0 right-0 flex items-center justify-center w-14 h-14 bg-cyan-500 text-white rounded-full m-1 transform transition-transform duration-300 hover:scale-110 hover:bg-cyan-400 disabled:bg-slate-600 disabled:cursor-not-allowed"
-        disabled={isLoading}
+        disabled={disabled}
         aria-label="Search flights"
       >
         {isLoading ? (
@@ -235,6 +234,10 @@ const App: React.FC = () => {
   
   const handleSearch = useCallback(async (e?: React.FormEvent<HTMLFormElement>) => {
     e?.preventDefault();
+    if (hasApiKey !== true) {
+        setError("Please select an API key before searching.");
+        return;
+    }
     if (!query.trim()) {
       setError('Please enter a search query.');
       return;
@@ -256,7 +259,7 @@ const App: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [query]);
+  }, [query, hasApiKey]);
 
   const handleClear = useCallback(() => {
     setQuery('');
@@ -328,20 +331,8 @@ const App: React.FC = () => {
     }
   };
 
-  if (hasApiKey === null) {
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-100 dark:bg-slate-900">
-            <LoadingSpinner className="w-12 h-12 text-cyan-500 animate-spin" />
-        </div>
-    );
-  }
-
-  if (hasApiKey === false) {
-    return <ApiKeySelectionScreen onSelectKey={handleSelectKey} error={error} />;
-  }
-
   return (
-    <div className="min-h-screen bg-slate-100 dark:bg-slate-900 text-slate-900 dark:text-white p-4 sm:p-8 transition-colors duration-300">
+    <div className="relative min-h-screen bg-slate-100 dark:bg-slate-900 text-slate-900 dark:text-white p-4 sm:p-8 transition-colors duration-300">
       <div 
         className="absolute top-0 left-0 w-full h-full bg-cover bg-center opacity-10 dark:opacity-10" 
         style={{backgroundImage: `url('https://images.unsplash.com/photo-1530521954074-e64f6810b32d?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D')`}}
@@ -355,6 +346,9 @@ const App: React.FC = () => {
             {theme === 'light' ? <MoonIcon className="w-6 h-6" /> : <SunIcon className="w-6 h-6" />}
         </button>
       </div>
+
+      {hasApiKey === false && <ApiKeyPrompt onSelectKey={handleSelectKey} error={error} />}
+
       <div className="relative z-10 container mx-auto flex flex-col items-center">
         <header className="text-center my-10 sm:my-16">
           <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight">
@@ -372,6 +366,7 @@ const App: React.FC = () => {
                   onQueryChange={setQuery}
                   onSubmit={handleSearch}
                   isLoading={isLoading}
+                  disabled={isLoading || hasApiKey !== true}
                   inputRef={searchInputRef}
                 />
             </div>
