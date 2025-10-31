@@ -28,3 +28,16 @@ export interface Itinerary {
   title: string;
   days: ItineraryDay[];
 }
+
+// Fix for line 34: The error indicates a conflict with another declaration of `window.aistudio`.
+// Defining a named interface `AIStudio` and using it for the property resolves this conflict.
+interface AIStudio {
+  hasSelectedApiKey: () => Promise<boolean>;
+  openSelectKey: () => Promise<void>;
+}
+
+declare global {
+  interface Window {
+    aistudio?: AIStudio;
+  }
+}

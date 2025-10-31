@@ -1,23 +1,47 @@
+
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Flight, GroundingSource, Itinerary } from './types';
 import { findFlights, generateItinerary } from './services/geminiService';
 import FlightCard from './components/FlightCard';
 import ItineraryModal from './components/ItineraryModal';
-import { PlaneIcon, SearchIcon, LoadingSpinner, GmailIcon, WhatsAppIcon, ClearIcon, SunIcon, MoonIcon } from './components/icons';
+import { PlaneIcon, SearchIcon, LoadingSpinner, GmailIcon, WhatsAppIcon, ClearIcon, SunIcon, MoonIcon, KeyIcon } from './components/icons';
 
 type Theme = 'light' | 'dark';
 
 // --- Helper Components ---
+
+const ApiKeyPrompt: React.FC<{ onSelectKey: () => void }> = ({ onSelectKey }) => (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/80 backdrop-blur-sm">
+        <div className="bg-slate-100 dark:bg-slate-800 p-8 rounded-2xl shadow-2xl max-w-md w-full text-center animate-fade-in-scale">
+            <KeyIcon className="w-16 h-16 mx-auto text-cyan-500 dark:text-cyan-400 mb-4" />
+            <h2 className="text-2xl font-bold mb-2">API Key Required</h2>
+            <p className="text-slate-600 dark:text-slate-300 mb-6">
+                To use this application, you need to select a Google AI Studio API key. Your key is securely stored and only used for this session.
+            </p>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
+                Using this service may incur charges. For more information, please see the <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" rel="noopener noreferrer" className="underline text-cyan-500 hover:text-cyan-600">billing documentation</a>.
+            </p>
+            <button
+                onClick={onSelectKey}
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-cyan-500 hover:bg-cyan-600 text-white font-bold rounded-lg transition-all duration-300 transform hover:scale-105"
+            >
+                <KeyIcon className="w-5 h-5" />
+                Select API Key
+            </button>
+        </div>
+    </div>
+);
 
 interface SearchFormProps {
   query: string;
   onQueryChange: (value: string) => void;
   onSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
   isLoading: boolean;
+  isDisabled: boolean;
   inputRef: React.RefObject<HTMLInputElement>;
 }
 
-const SearchForm: React.FC<SearchFormProps> = ({ query, onQueryChange, onSubmit, isLoading, inputRef }) => (
+const SearchForm: React.FC<SearchFormProps> = ({ query, onQueryChange, onSubmit, isLoading, isDisabled, inputRef }) => (
   <form onSubmit={onSubmit} className="w-full max-w-2xl mx-auto">
     <div className="relative">
       <input
@@ -27,12 +51,12 @@ const SearchForm: React.FC<SearchFormProps> = ({ query, onQueryChange, onSubmit,
         onChange={(e) => onQueryChange(e.target.value)}
         placeholder="e.g., flights from NYC to London"
         className="w-full pl-5 pr-12 py-4 bg-white/70 dark:bg-slate-800/70 border border-slate-300 dark:border-slate-700 rounded-full text-lg text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all duration-300 disabled:cursor-not-allowed disabled:opacity-60"
-        disabled={isLoading}
+        disabled={isLoading || isDisabled}
       />
       <button
         type="submit"
         className="absolute inset-y-0 right-0 flex items-center justify-center w-14 h-14 bg-cyan-500 text-white rounded-full m-1 transform transition-transform duration-300 hover:scale-110 hover:bg-cyan-400 disabled:bg-slate-600 disabled:cursor-not-allowed"
-        disabled={isLoading}
+        disabled={isLoading || isDisabled}
         aria-label="Search flights"
       >
         {isLoading ? (
@@ -136,6 +160,9 @@ const App: React.FC = () => {
   const [itinerary, setItinerary] = useState<Itinerary | null>(null);
   const [isItineraryLoading, setIsItineraryLoading] = useState<boolean>(false);
   const [itineraryError, setItineraryError] = useState<string | null>(null);
+
+  const [hasApiKey, setHasApiKey] = useState<boolean>(false);
+  const [isCheckingApiKey, setIsCheckingApiKey] = useState<boolean>(true);
   
   const [theme, setTheme] = useState<Theme>(() => {
     const savedTheme = localStorage.getItem('theme') as Theme | null;
@@ -153,6 +180,27 @@ const App: React.FC = () => {
   }, [theme]);
 
   useEffect(() => {
+    const checkApiKey = async () => {
+      if (typeof window.aistudio?.hasSelectedApiKey === 'function') {
+        try {
+          const keyStatus = await window.aistudio.hasSelectedApiKey();
+          setHasApiKey(keyStatus);
+        } catch (error) {
+          console.error("Error checking API key status:", error);
+          setHasApiKey(false);
+        }
+      } else {
+        // If window.aistudio doesn't exist, assume API_KEY is in process.env
+        // and let geminiService handle it. Enable the UI for the user.
+        setHasApiKey(true);
+      }
+      setIsCheckingApiKey(false);
+    };
+    checkApiKey();
+  }, []);
+
+
+  useEffect(() => {
     searchInputRef.current?.focus();
   }, []);
 
@@ -161,13 +209,36 @@ const App: React.FC = () => {
     setTheme(prevTheme => prevTheme === 'light' ? 'dark' : 'light');
   };
 
+  const handleSelectApiKey = async () => {
+    if (window.aistudio) {
+      try {
+        await window.aistudio.openSelectKey();
+        // Assume key is selected after the dialog is closed to avoid race conditions.
+        setHasApiKey(true);
+        setError(null); // Clear previous errors
+      } catch (error) {
+        console.error("Error opening API key selection:", error);
+        setError("Could not select an API key. Please try again.");
+      }
+    }
+  };
+
   const handleApiError = (err: unknown) => {
     const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred.';
-    setError(errorMessage);
+    if (errorMessage.includes('API key is not configured')) {
+        setError('Your API Key is missing or invalid. Please select a valid API key to proceed.');
+        setHasApiKey(false); // Re-trigger the API key prompt
+    } else {
+        setError(errorMessage);
+    }
   };
   
   const handleSearch = useCallback(async (e?: React.FormEvent<HTMLFormElement>) => {
     e?.preventDefault();
+    if (!hasApiKey) {
+      setError('Please select an API key before searching.');
+      return;
+    }
     if (!query.trim()) {
       setError('Please enter a search query.');
       return;
@@ -189,7 +260,7 @@ const App: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [query]);
+  }, [query, hasApiKey]);
 
   const handleClear = useCallback(() => {
     setQuery('');
@@ -224,7 +295,6 @@ const App: React.FC = () => {
     flightResults.forEach((flight, index) => {
       text += `✈️ Flight ${index + 1}:\n`;
       text += `  - Airline: ${flight.airline}\n`;
-      // Fix: Used flight.to to correctly access the destination from the flight object.
       text += `  - Route: ${flight.from} to ${flight.to}\n`;
       text += `  - Price: ₹${flight.price}\n`;
       text += `  - Duration: ${flight.duration}\n`;
@@ -253,6 +323,7 @@ const App: React.FC = () => {
         className="absolute top-0 left-0 w-full h-full bg-cover bg-center opacity-10 dark:opacity-10" 
         style={{backgroundImage: `url('https://images.unsplash.com/photo-1530521954074-e64f6810b32d?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D')`}}
       ></div>
+      {!hasApiKey && !isCheckingApiKey && <ApiKeyPrompt onSelectKey={handleSelectApiKey} />}
       <div className="absolute top-4 right-4 flex items-center gap-2">
         <button 
             onClick={toggleTheme}
@@ -280,6 +351,7 @@ const App: React.FC = () => {
                   onQueryChange={setQuery}
                   onSubmit={handleSearch}
                   isLoading={isLoading}
+                  isDisabled={!hasApiKey || isCheckingApiKey}
                   inputRef={searchInputRef}
                 />
             </div>
