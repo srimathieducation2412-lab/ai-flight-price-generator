@@ -1,3 +1,5 @@
+
+
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Flight, GroundingSource, Itinerary } from './types';
 import { findFlights, generateItinerary } from './services/geminiService';
@@ -168,7 +170,7 @@ const App: React.FC = () => {
   const [isItineraryLoading, setIsItineraryLoading] = useState<boolean>(false);
   const [itineraryError, setItineraryError] = useState<string | null>(null);
   
-  const [hasApiKey, setHasApiKey] = useState(true);
+  const [hasApiKey, setHasApiKey] = useState<boolean | null>(null);
 
   const [theme, setTheme] = useState<Theme>(() => {
     const savedTheme = localStorage.getItem('theme') as Theme | null;
@@ -190,11 +192,21 @@ const App: React.FC = () => {
         if (window.aistudio) {
             const keyStatus = await window.aistudio.hasSelectedApiKey();
             setHasApiKey(keyStatus);
+        } else {
+            // If the aistudio helper isn't available, we can't get a key.
+            setHasApiKey(false);
         }
     };
     checkApiKey();
-    searchInputRef.current?.focus();
   }, []);
+  
+  useEffect(() => {
+      // Focus the input only after the API key check is complete and successful.
+      if(hasApiKey === true) {
+        searchInputRef.current?.focus();
+      }
+  }, [hasApiKey]);
+
 
   const toggleTheme = () => {
     setTheme(prevTheme => prevTheme === 'light' ? 'dark' : 'light');
@@ -287,6 +299,7 @@ const App: React.FC = () => {
     flightResults.forEach((flight, index) => {
       text += `✈️ Flight ${index + 1}:\n`;
       text += `  - Airline: ${flight.airline}\n`;
+      // Fix: Used flight.to to correctly access the destination from the flight object.
       text += `  - Route: ${flight.from} to ${flight.to}\n`;
       text += `  - Price: ₹${flight.price}\n`;
       text += `  - Duration: ${flight.duration}\n`;
@@ -309,7 +322,15 @@ const App: React.FC = () => {
     }
   };
 
-  if (!hasApiKey) {
+  if (hasApiKey === null) {
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-100 dark:bg-slate-900">
+            <LoadingSpinner className="w-12 h-12 text-cyan-500 animate-spin" />
+        </div>
+    );
+  }
+
+  if (hasApiKey === false) {
     return <ApiKeySelectionScreen onSelectKey={handleSelectKey} />;
   }
 

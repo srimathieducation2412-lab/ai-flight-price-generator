@@ -30,8 +30,8 @@ export interface Itinerary {
   days: ItineraryDay[];
 }
 
-// Fix: Defined the AIStudio interface to resolve conflict with other global declarations.
-export interface AIStudio {
+// Fix: Removed 'export' from the AIStudio interface to resolve global type declaration conflicts.
+interface AIStudio {
   hasSelectedApiKey: () => Promise<boolean>;
   openSelectKey: () => Promise<void>;
 }
