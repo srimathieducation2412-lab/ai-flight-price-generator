@@ -31,7 +31,8 @@ export interface Itinerary {
 
 // Fix for line 34: The error indicates a conflict with another declaration of `window.aistudio`.
 // Defining a named interface `AIStudio` and using it for the property resolves this conflict.
-interface AIStudio {
+// FIX: Export the AIStudio interface to resolve the "Subsequent property declarations must have the same type" error.
+export interface AIStudio {
   hasSelectedApiKey: () => Promise<boolean>;
   openSelectKey: () => Promise<void>;
 }

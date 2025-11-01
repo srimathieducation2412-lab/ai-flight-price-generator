@@ -324,7 +324,7 @@ const App: React.FC = () => {
         style={{backgroundImage: `url('https://images.unsplash.com/photo-1530521954074-e64f6810b32d?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D')`}}
       ></div>
       {!hasApiKey && !isCheckingApiKey && <ApiKeyPrompt onSelectKey={handleSelectApiKey} />}
-      <div className="absolute top-4 right-4 flex items-center gap-2">
+      <div className="absolute top-4 right-4 flex items-center gap-2 z-20">
         <button 
             onClick={toggleTheme}
             className="p-3 rounded-full bg-slate-200/80 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-700 transition-all duration-300"
